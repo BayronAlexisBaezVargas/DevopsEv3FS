@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: ms-comunidad
-          image: ECR_REGISTRY/devows-project-ms-comunidad:latest
+          image: 270613068652.dkr.ecr.us-east-1.amazonaws.com/devows-project-ms-comunidad:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8094

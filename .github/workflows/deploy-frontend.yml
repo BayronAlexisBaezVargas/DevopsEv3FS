@@ -40,11 +40,10 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           # 1. Obtener la URL del API Gateway si existe
-          API_GATEWAY_URL=$(kubectl get svc api-gateway -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+          API_GATEWAY_URL=$(kubectl get svc api-gateway -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
           if [ -z "$API_GATEWAY_URL" ]; then API_GATEWAY_URL="API_GATEWAY_PENDING"; fi
           
           # 2. Reemplazar ECR_REGISTRY y la URL del API en el manifiesto
-          sed -i "s|ECR_REGISTRY|$ECR_REGISTRY|g" k8s/frontend.yaml
           sed -i "s|API_GATEWAY_URL_PLACEHOLDER|$API_GATEWAY_URL|g" k8s/frontend.yaml
           
           # 3. Eliminar el Deployment anterior para inicio limpio

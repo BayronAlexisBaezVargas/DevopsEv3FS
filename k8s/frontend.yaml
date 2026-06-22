@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ECR_REGISTRY/devows-project-frontend:latest
+          image: 270613068652.dkr.ecr.us-east-1.amazonaws.com/devows-project-frontend:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 80

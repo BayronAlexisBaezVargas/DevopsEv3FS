@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: ms-notificaciones
-          image: ECR_REGISTRY/devows-project-ms-notificaciones:latest
+          image: 270613068652.dkr.ecr.us-east-1.amazonaws.com/devows-project-ms-notificaciones:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8095

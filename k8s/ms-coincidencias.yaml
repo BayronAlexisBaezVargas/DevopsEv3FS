@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: ms-coincidencias
-          image: ECR_REGISTRY/devows-project-ms-coincidencias:latest
+          image: 270613068652.dkr.ecr.us-east-1.amazonaws.com/devows-project-ms-coincidencias:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8083

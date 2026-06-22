@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: api-gateway
-          image: ECR_REGISTRY/devows-project-api-gateway:latest
+          image: 270613068652.dkr.ecr.us-east-1.amazonaws.com/devows-project-api-gateway:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080

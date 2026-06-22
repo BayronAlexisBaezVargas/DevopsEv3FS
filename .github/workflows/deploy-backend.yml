@@ -13,13 +13,48 @@ jobs:
         id: filter
         with:
           filters: |
-            api-gateway: 'Dnf-backend/Api-Gateway/**'
-            eurekaserver: 'Dnf-backend/eurekaserver/**'
-            ms-coincidencias: 'Dnf-backend/Ms-coincidencias/**'
-            ms-comunidad: 'Dnf-backend/Ms-comunidad/**'
-            ms-mascota: 'Dnf-backend/Ms-mascota/**'
-            ms-notificaciones: 'Dnf-backend/Ms-notificaciones/**'
-            ms-usuario: 'Dnf-backend/Ms-usuario/**'
+            api-gateway:
+              - 'Dnf-backend/Api-Gateway/**'
+              - 'k8s/api-gateway.yaml'
+              - 'k8s/configmap.yaml'
+              - 'k8s/secrets.yaml'
+              - '.github/workflows/deploy-backend.yml'
+            eurekaserver:
+              - 'Dnf-backend/eurekaserver/**'
+              - 'k8s/eurekaserver.yaml'
+              - 'k8s/configmap.yaml'
+              - 'k8s/secrets.yaml'
+              - '.github/workflows/deploy-backend.yml'
+            ms-coincidencias:
+              - 'Dnf-backend/Ms-coincidencias/**'
+              - 'k8s/ms-coincidencias.yaml'
+              - 'k8s/configmap.yaml'
+              - 'k8s/secrets.yaml'
+              - '.github/workflows/deploy-backend.yml'
+            ms-comunidad:
+              - 'Dnf-backend/Ms-comunidad/**'
+              - 'k8s/ms-comunidad.yaml'
+              - 'k8s/configmap.yaml'
+              - 'k8s/secrets.yaml'
+              - '.github/workflows/deploy-backend.yml'
+            ms-mascota:
+              - 'Dnf-backend/Ms-mascota/**'
+              - 'k8s/ms-mascota.yaml'
+              - 'k8s/configmap.yaml'
+              - 'k8s/secrets.yaml'
+              - '.github/workflows/deploy-backend.yml'
+            ms-notificaciones:
+              - 'Dnf-backend/Ms-notificaciones/**'
+              - 'k8s/ms-notificaciones.yaml'
+              - 'k8s/configmap.yaml'
+              - 'k8s/secrets.yaml'
+              - '.github/workflows/deploy-backend.yml'
+            ms-usuario:
+              - 'Dnf-backend/Ms-usuario/**'
+              - 'k8s/ms-usuario.yaml'
+              - 'k8s/configmap.yaml'
+              - 'k8s/secrets.yaml'
+              - '.github/workflows/deploy-backend.yml'
       - id: set-matrix
         run: echo "changes=${{ toJSON(steps.filter.outputs.changes) }}" >> "$GITHUB_OUTPUT"
 
@@ -79,14 +114,13 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           # 1. Obtener la IP privada de la EC2 que corre la BD (por el Tag Name)
-          DB_IP=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=devows-project-db-server" "Name=instance-state-name,Values=running" --query "Reservations[0].Instances[0].PrivateIpAddress" --output text)
+          DB_IP=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=devows-project-db-server" "Name=instance-state-name,Values=running" --query "Reservations[0].Instances[0].PrivateIpAddress" --output text || echo "None")
           if [ "$DB_IP" = "None" ] || [ -z "$DB_IP" ]; then
             echo "No se encontró la instancia de la BD, usando localhost por defecto"
             DB_IP="127.0.0.1"
           fi
           
           # 2. Inyectar ECR y la IP de la BD en los manifiestos
-          sed -i "s|ECR_REGISTRY|$ECR_REGISTRY|g" k8s/${{ matrix.service }}.yaml
           sed -i "s|EC2_PRIVATE_IP_PLACEHOLDER|$DB_IP|g" k8s/configmap.yaml
           
           # 3. Aplicar ConfigMap y Secrets globales
