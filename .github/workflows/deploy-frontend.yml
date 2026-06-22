@@ -1,7 +1,7 @@
 name: CI/CD Devows - Frontend (EKS)
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "master" ]
 jobs:
   build-push-deploy-frontend:
     runs-on: ubuntu-latest

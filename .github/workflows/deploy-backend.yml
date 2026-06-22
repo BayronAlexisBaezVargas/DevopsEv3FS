@@ -1,7 +1,7 @@
 name: CI/CD Devows - Backend (EKS)
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "master" ]
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
