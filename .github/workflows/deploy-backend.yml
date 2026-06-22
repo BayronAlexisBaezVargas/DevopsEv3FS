@@ -1,0 +1,103 @@
+name: CI/CD Devows - Backend (EKS)
+on:
+  push:
+    branches: [ "main" ]
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.set-matrix.outputs.changes }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            api-gateway: 'Dnf-backend/Api-Gateway/**'
+            eurekaserver: 'Dnf-backend/eurekaserver/**'
+            ms-coincidencias: 'Dnf-backend/Ms-coincidencias/**'
+            ms-comunidad: 'Dnf-backend/Ms-comunidad/**'
+            ms-mascota: 'Dnf-backend/Ms-mascota/**'
+            ms-notificaciones: 'Dnf-backend/Ms-notificaciones/**'
+            ms-usuario: 'Dnf-backend/Ms-usuario/**'
+      - id: set-matrix
+        run: echo "changes=${{ toJSON(steps.filter.outputs.changes) }}" >> "$GITHUB_OUTPUT"
+
+  build-push-deploy-backend:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.services != '[]' && needs.detect-changes.outputs.services != '' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJSON(needs.detect-changes.outputs.services) }}
+      fail-fast: false
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v3
+        
+      - name: Configurar credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+          
+      - name: Login en Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+        
+      - name: Set Paths and Names
+        id: vars
+        run: |
+          if [ "${{ matrix.service }}" = "api-gateway" ]; then echo "path=Dnf-backend/Api-Gateway"; 
+          elif [ "${{ matrix.service }}" = "eurekaserver" ]; then echo "path=Dnf-backend/eurekaserver";
+          elif [ "${{ matrix.service }}" = "ms-coincidencias" ]; then echo "path=Dnf-backend/Ms-coincidencias";
+          elif [ "${{ matrix.service }}" = "ms-comunidad" ]; then echo "path=Dnf-backend/Ms-comunidad/Ms-comunidad";
+          elif [ "${{ matrix.service }}" = "ms-mascota" ]; then echo "path=Dnf-backend/Ms-mascota";
+          elif [ "${{ matrix.service }}" = "ms-notificaciones" ]; then echo "path=Dnf-backend/Ms-notificaciones/Ms-notificaciones";
+          elif [ "${{ matrix.service }}" = "ms-usuario" ]; then echo "path=Dnf-backend/Ms-usuario";
+          fi >> "$GITHUB_OUTPUT"
+        
+      - name: Build imagen y push a ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: latest
+        run: |
+          cd ${{ steps.vars.outputs.path }}
+          docker build -t devows-project-${{ matrix.service }} .
+          docker tag devows-project-${{ matrix.service }}:$IMAGE_TAG $ECR_REGISTRY/devows-project-${{ matrix.service }}:$IMAGE_TAG
+          docker push $ECR_REGISTRY/devows-project-${{ matrix.service }}:$IMAGE_TAG
+          
+      - name: Actualizar Kubeconfig de EKS
+        run: |
+          aws eks update-kubeconfig --region us-east-1 --name ${{ secrets.CLUSTER_NAME }}
+            
+      - name: Configurar IP de BD y Desplegar
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          # 1. Obtener la IP privada de la EC2 que corre la BD (por el Tag Name)
+          DB_IP=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=devows-project-db-server" "Name=instance-state-name,Values=running" --query "Reservations[0].Instances[0].PrivateIpAddress" --output text)
+          if [ "$DB_IP" = "None" ] || [ -z "$DB_IP" ]; then
+            echo "No se encontró la instancia de la BD, usando localhost por defecto"
+            DB_IP="127.0.0.1"
+          fi
+          
+          # 2. Inyectar ECR y la IP de la BD en los manifiestos
+          sed -i "s|ECR_REGISTRY|$ECR_REGISTRY|g" k8s/${{ matrix.service }}.yaml
+          sed -i "s|EC2_PRIVATE_IP_PLACEHOLDER|$DB_IP|g" k8s/configmap.yaml
+          
+          # 3. Aplicar ConfigMap y Secrets globales
+          kubectl apply -f k8s/configmap.yaml || true
+          kubectl apply -f k8s/secrets.yaml || true
+          
+          # 4. Eliminar el Deployment anterior para un inicio limpio (NO el Service para no perder el puerto/IP)
+          kubectl delete deployment ${{ matrix.service }} --ignore-not-found=true
+          
+          # 5. Aplicar el manifiesto del servicio (creará el Deployment desde cero con la nueva imagen)
+          kubectl apply -f k8s/${{ matrix.service }}.yaml
+          
+          # 6. Esperar a que el nuevo deployment esté listo
+          kubectl rollout status deployment/${{ matrix.service }}

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://eurekaserver:8761/eureka/"
+  SPRING_DATASOURCE_USERNAME: "admin"
+  # NOTA: DB_HOST debe ser la IP privada de la instancia EC2
+  # Esta IP se inyectará dinámicamente mediante sed en el pipeline o se puede establecer manualmente
+  DB_HOST: "EC2_PRIVATE_IP_PLACEHOLDER" 

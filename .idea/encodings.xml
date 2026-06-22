@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/Dnf-backend/Api-Gateway/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Dnf-backend/Ms-coincidencias/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Dnf-backend/Ms-comunidad/Ms-comunidad/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Dnf-backend/Ms-mascota/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Dnf-backend/Ms-notificaciones/Ms-notificaciones/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Dnf-backend/Ms-usuario/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Dnf-backend/eurekaserver/src/main/java" charset="UTF-8" />
+  </component>
+</project>

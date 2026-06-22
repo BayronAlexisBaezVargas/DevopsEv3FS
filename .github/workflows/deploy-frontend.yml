@@ -1,0 +1,57 @@
+name: CI/CD Devows - Frontend (EKS)
+on:
+  push:
+    branches: [ "main" ]
+jobs:
+  build-push-deploy-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v3
+        
+      - name: Configurar credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+          
+      - name: Login en Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+        
+      - name: Build imagen Frontend y push a ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: latest
+        run: |
+          cd Dnf-frontend
+          docker build -t devows-project-frontend .
+          docker tag devows-project-frontend:$IMAGE_TAG $ECR_REGISTRY/devows-project-frontend:$IMAGE_TAG
+          docker push $ECR_REGISTRY/devows-project-frontend:$IMAGE_TAG
+          
+      - name: Actualizar Kubeconfig de EKS
+        run: |
+          aws eks update-kubeconfig --region us-east-1 --name ${{ secrets.CLUSTER_NAME }}
+            
+      - name: Desplegar Frontend en Kubernetes
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          # 1. Obtener la URL del API Gateway si existe
+          API_GATEWAY_URL=$(kubectl get svc api-gateway -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+          if [ -z "$API_GATEWAY_URL" ]; then API_GATEWAY_URL="API_GATEWAY_PENDING"; fi
+          
+          # 2. Reemplazar ECR_REGISTRY y la URL del API en el manifiesto
+          sed -i "s|ECR_REGISTRY|$ECR_REGISTRY|g" k8s/frontend.yaml
+          sed -i "s|API_GATEWAY_URL_PLACEHOLDER|$API_GATEWAY_URL|g" k8s/frontend.yaml
+          
+          # 3. Eliminar el Deployment anterior para inicio limpio
+          kubectl delete deployment frontend --ignore-not-found=true
+          
+          # 4. Aplicar los manifiestos (Crea el Deployment nuevo)
+          kubectl apply -f k8s/frontend.yaml
+          
+          # 5. Esperar a que esté listo
+          kubectl rollout status deployment/frontend

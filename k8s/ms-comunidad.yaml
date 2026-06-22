@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-comunidad
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-comunidad
+  template:
+    metadata:
+      labels:
+        app: ms-comunidad
+    spec:
+      containers:
+        - name: ms-comunidad
+          image: ECR_REGISTRY/devows-project-ms-comunidad:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8094
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          env:
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: DB_HOST
+            - name: SPRING_RABBITMQ_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: DB_HOST
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://$(DB_HOST):5432/dnf_db"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "250m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ms-comunidad
+spec:
+  selector:
+    app: ms-comunidad
+  ports:
+    - protocol: TCP
+      port: 8094
+      targetPort: 8094
